@@ -2,6 +2,10 @@
 interface FileSystemHandle {
   name: string;
   kind: string;
+  requestPermission(): Promise<PermissionState>;
+  requestPermission(descriptor: {
+    mode?: 'read' | 'write' | 'readwrite';
+  }): Promise<PermissionState>;
 }
 
 /** @see https://developer.mozilla.org/en-US/docs/Web/API/FileSystemFileHandle */

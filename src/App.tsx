@@ -2,6 +2,7 @@ import { Box, Button, Stack, TextField, Typography } from '@mui/material';
 import { SnackbarProvider, enqueueSnackbar } from 'notistack';
 import { useEffect, useId, useRef, useState, type ChangeEvent, type FC } from 'react';
 import { SampledFileComparator } from './sampled-file-comparator';
+import { get, set } from 'idb-keyval';
 
 export const App: FC = () => {
   const id = `App-${useId()}`;
@@ -9,7 +10,7 @@ export const App: FC = () => {
   const [blockSize, setBlockSize] = useState(0x1000);
   const [sampleCount, setSampleCount] = useState(0x40);
   const [watchIntervalMs, setWatchIntervalMs] = useState(500);
-  const [fileHandle, setFileHandle] = useState<FileSystemFileHandle>();
+  const [fileHandle, setFileHandle] = useState<FileSystemFileHandle | null>(null);
   const [comparator, setComparator] = useState<SampledFileComparator>();
   const lastModifiedRef = useRef<number>(null);
 
@@ -73,6 +74,20 @@ export const App: FC = () => {
     return () => {
       controller.abort();
     };
+  }, [setFileHandle]);
+
+  useEffect(() => {
+    if (!fileHandle) return;
+    (async () => {
+      await set('fileHandle', fileHandle);
+    })();
+  }, [fileHandle]);
+
+  useEffect(() => {
+    (async () => {
+      const fileHandle = await get('fileHandle');
+      setFileHandle(fileHandle);
+    })();
   }, []);
 
   return (
@@ -144,7 +159,7 @@ export const App: FC = () => {
           <Button
             variant={fileHandle ? 'outlined' : 'contained'}
             onClick={async () => {
-              setFileHandle(undefined);
+              setFileHandle(null);
               setComparator(undefined);
 
               const [fileHandle] = await window.showOpenFilePicker({
@@ -153,6 +168,8 @@ export const App: FC = () => {
                 multiple: false,
               });
               setFileHandle(fileHandle);
+              const file = await fileHandle.getFile();
+              lastModifiedRef.current = file.lastModified;
             }}
             fullWidth
           >
@@ -164,7 +181,7 @@ export const App: FC = () => {
               variant="outlined"
               color="secondary"
               onClick={() => {
-                setFileHandle(undefined);
+                setFileHandle(null);
                 setComparator(undefined);
               }}
               fullWidth
@@ -188,12 +205,23 @@ export const App: FC = () => {
               <Button
                 variant={comparator ? 'outlined' : 'contained'}
                 onClick={async () => {
+                  if (typeof fileHandle.requestPermission === 'function') {
+                    const status = await fileHandle.requestPermission({ mode: 'read' });
+                    if (status !== 'granted') {
+                      enqueueSnackbar('Access denied', {
+                        variant: 'error',
+                      });
+                      return;
+                    }
+                  }
+
                   const comparator = new SampledFileComparator({
                     blockSize,
                     sampleCount,
                   });
 
                   const first = await fileHandle.getFile();
+                  lastModifiedRef.current = first.lastModified;
                   await comparator.init(first);
 
                   setComparator(comparator);
