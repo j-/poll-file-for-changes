@@ -2,7 +2,9 @@ import { Box, Button, Stack, TextField, Typography } from '@mui/material';
 import { SnackbarProvider, enqueueSnackbar } from 'notistack';
 import { useEffect, useId, useRef, useState, type ChangeEvent, type FC } from 'react';
 import { SampledFileComparator } from './sampled-file-comparator';
-import { del, get, set } from 'idb-keyval';
+import { createStore, del, get, set } from 'idb-keyval';
+
+const customStore = createStore('/poll-file-for-changes', 'fileHandleStore');
 
 export const App: FC = () => {
   const id = `App-${useId()}`;
@@ -79,13 +81,13 @@ export const App: FC = () => {
   useEffect(() => {
     if (!fileHandle) return;
     (async () => {
-      await set('fileHandle', fileHandle);
+      await set('fileHandle', fileHandle, customStore);
     })();
   }, [fileHandle]);
 
   useEffect(() => {
     (async () => {
-      const fileHandle = await get('fileHandle');
+      const fileHandle = await get('fileHandle', customStore);
       setFileHandle(fileHandle);
     })();
   }, []);
@@ -179,7 +181,7 @@ export const App: FC = () => {
               color="secondary"
               onClick={() => {
                 setFileHandle(null);
-                del('fileHandle');
+                del('fileHandle', customStore);
                 setComparator(undefined);
               }}
               fullWidth
