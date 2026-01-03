@@ -2,7 +2,7 @@ import { Box, Button, Stack, TextField, Typography } from '@mui/material';
 import { SnackbarProvider, enqueueSnackbar } from 'notistack';
 import { useEffect, useId, useRef, useState, type ChangeEvent, type FC } from 'react';
 import { SampledFileComparator } from './sampled-file-comparator';
-import { get, set } from 'idb-keyval';
+import { del, get, set } from 'idb-keyval';
 
 export const App: FC = () => {
   const id = `App-${useId()}`;
@@ -159,9 +159,6 @@ export const App: FC = () => {
           <Button
             variant={fileHandle ? 'outlined' : 'contained'}
             onClick={async () => {
-              setFileHandle(null);
-              setComparator(undefined);
-
               const [fileHandle] = await window.showOpenFilePicker({
                 id: 'fileHandle',
                 startIn: 'downloads',
@@ -182,6 +179,7 @@ export const App: FC = () => {
               color="secondary"
               onClick={() => {
                 setFileHandle(null);
+                del('fileHandle');
                 setComparator(undefined);
               }}
               fullWidth
