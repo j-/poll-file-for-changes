@@ -12,8 +12,11 @@ export const App: FC = () => {
   const [blockSize, setBlockSize] = useState(0x1000);
   const [sampleCount, setSampleCount] = useState(0x40);
   const [watchIntervalMs, setWatchIntervalMs] = useState(500);
+  const [maxDeltaMs, setMaxDeltaMs] = useState(60_000);
   const [fileHandle, setFileHandle] = useState<FileSystemFileHandle | null>(null);
   const [comparator, setComparator] = useState<SampledFileComparator>();
+  const [lastUpdate, setLastUpdate] = useState<number>();
+  const waitForFirstChange = false;
   const lastModifiedRef = useRef<number>(null);
 
   useEffect(() => {
@@ -24,6 +27,7 @@ export const App: FC = () => {
       if (next.lastModified !== lastModifiedRef.current) {
         enqueueSnackbar('Detected a change: last modified time updated');
         lastModifiedRef.current = next.lastModified;
+        setLastUpdate(Date.now());
         return;
       }
       const before = performance.now();
@@ -34,6 +38,7 @@ export const App: FC = () => {
       if (!isSame) {
         enqueueSnackbar('Detected a change: file contents changed');
         await comparator.init(next);
+        setLastUpdate(Date.now());
       }
     }, watchIntervalMs);
 
@@ -41,6 +46,26 @@ export const App: FC = () => {
       clearInterval(clock);
     };
   }, [comparator, fileHandle, watchIntervalMs]);
+
+  useEffect(() => {
+    if (!lastUpdate) return;
+
+    const clock = setInterval(() => {
+      const now = Date.now();
+      const deltaMs = now - lastUpdate;
+      if (deltaMs > maxDeltaMs) {
+        setComparator(undefined);
+        setLastUpdate(undefined);
+        enqueueSnackbar('Stopped watching for changes', {
+          variant: 'info',
+        });
+      }
+    }, 1_000);
+
+    return () => {
+      clearInterval(clock);
+    };
+  }, [lastUpdate, maxDeltaMs]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -93,7 +118,7 @@ export const App: FC = () => {
   }, []);
 
   return (
-    <Stack maxWidth="60ch" mx="auto" px={2} my={6} gap={4}>
+    <Stack maxWidth="80ch" mx="auto" px={2} my={6} gap={4}>
       <SnackbarProvider />
 
       <Typography component="h1" variant="h5">
@@ -155,6 +180,24 @@ export const App: FC = () => {
             }}
             fullWidth
           />
+
+          <TextField
+            id={`${id}-maxDelta`}
+            label="Stop watching after (ms)"
+            value={maxDeltaMs}
+            onChange={(event: ChangeEvent<HTMLInputElement>) => {
+              setMaxDeltaMs(event.target.valueAsNumber);
+            }}
+            type="number"
+            slotProps={{
+              htmlInput: {
+                min: 1_000,
+                max: 600_000,
+                step: 1_000,
+              },
+            }}
+            fullWidth
+          />
         </Stack>
 
         <Stack direction="row" gap={2}>
@@ -183,6 +226,7 @@ export const App: FC = () => {
                 setFileHandle(null);
                 del('fileHandle', customStore);
                 setComparator(undefined);
+                setLastUpdate(undefined);
               }}
               fullWidth
             >
@@ -225,6 +269,7 @@ export const App: FC = () => {
                   await comparator.init(first);
 
                   setComparator(comparator);
+                  setLastUpdate(waitForFirstChange ? undefined : Date.now());
                 }}
                 fullWidth
               >
@@ -237,6 +282,7 @@ export const App: FC = () => {
                 variant="outlined"
                 onClick={() => {
                   setComparator(undefined);
+                  setLastUpdate(undefined);
                 }}
                 fullWidth
               >
