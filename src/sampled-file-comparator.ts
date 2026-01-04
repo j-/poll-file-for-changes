@@ -1,6 +1,9 @@
-export type Sample = {
+export type Region = {
   offset: number;
   length: number;
+};
+
+type Sample = Region & {
   data: Uint8Array;
 };
 
@@ -37,6 +40,16 @@ export class SampledFileComparator {
   constructor(options: SampledFileComparatorOptions = {}) {
     this.blockSize = options.blockSize ?? 4096;    // 4 KiB default
     this.sampleCount = options.sampleCount ?? 64;  // 64 samples default
+  }
+
+  getRegions() {
+    if (!this.samples) {
+      throw new Error('Comparator not yet initialized');
+    }
+    return this.samples.map((sample) => ({
+      offset: sample.offset,
+      length: sample.length,
+    }));
   }
 
   /**

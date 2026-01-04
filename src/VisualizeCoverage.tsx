@@ -1,16 +1,15 @@
 import { Box } from '@mui/material';
 import { useEffect, useMemo, useState, type FC } from 'react';
+import type { Region } from './sampled-file-comparator';
 
 export type VisualizeCoverageProps = {
-  blockSize: number;
-  sampleCount: number;
+  regions: Region[];
   watchIntervalMs: number;
   fileHandle: FileSystemFileHandle;
 };
 
 export const VisualizeCoverage: FC<VisualizeCoverageProps> = ({
-  blockSize,
-  sampleCount,
+  regions,
   watchIntervalMs,
   fileHandle,
 }) => {
@@ -20,14 +19,6 @@ export const VisualizeCoverage: FC<VisualizeCoverageProps> = ({
     if (!file) return null;
     return file.size;
   }, [file]);
-
-  const gapSize = useMemo(() => {
-    if (!fileSize) return null;
-    const totalCovered = blockSize * sampleCount;
-    const totalUncovered = Math.max(0, fileSize - totalCovered);
-    const gapSize = totalUncovered / (sampleCount - 1);
-    return Math.floor(gapSize);
-  }, [blockSize, fileSize, sampleCount]);
 
   useEffect(() => {
     fileHandle.getFile().then(setFile);
@@ -56,25 +47,41 @@ export const VisualizeCoverage: FC<VisualizeCoverageProps> = ({
         contain: 'paint',
       }}
     >
-      {Array.from({ length: sampleCount }, (_, i) => [
+      {regions.map((region, i) => [
         <Box
-          data-testid="VisualizeCoverage-block"
-          key={`block-${i}`}
+          key={`gap-${i}`}
+          data-testid="VisualizeCoverage-offset"
+          data-region-index={i}
+          data-region-offset={region.offset}
+          data-region-length={region.length}
           sx={{
-            flex: blockSize,
+            flex: region.offset - (
+              i === 0 ? 0 :
+              regions[i - 1].offset + regions[i - 1].length
+            ),
+          }}
+        />,
+        <Box
+          key={`block-${i}`}
+          data-testid="VisualizeCoverage-length"
+          data-region-index={i}
+          data-region-offset={region.offset}
+          data-region-length={region.length}
+          sx={{
+            flex: region.length,
             backgroundColor: (theme) => theme.palette.primary.dark,
           }}
         />,
-        i < sampleCount - 1 ?
-          <Box
-            data-testid="VisualizeCoverage-gap"
-            key={`gap-${i}`}
-            sx={{
-              flex: gapSize,
-            }}
-          /> :
-          null,
       ])}
+      <Box
+        data-testid="VisualizeCoverage-leftover"
+        sx={{
+          flex: (fileSize ?? 0) - (
+            (regions.at(-1)?.offset ?? 0) +
+            (regions.at(-1)?.length ?? 0)
+          ),
+        }}
+      />
     </Box>
   );
 };

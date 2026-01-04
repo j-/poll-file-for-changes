@@ -1,6 +1,6 @@
 import { Box, Button, Stack, TextField, Typography } from '@mui/material';
 import { SnackbarProvider, enqueueSnackbar } from 'notistack';
-import { useEffect, useId, useRef, useState, type ChangeEvent, type FC } from 'react';
+import { useEffect, useId, useMemo, useRef, useState, type ChangeEvent, type FC } from 'react';
 import { SampledFileComparator } from './sampled-file-comparator';
 import { createStore, del, get, set } from 'idb-keyval';
 import { VisualizeCoverage } from './VisualizeCoverage';
@@ -19,6 +19,10 @@ export const App: FC = () => {
   const [lastUpdate, setLastUpdate] = useState<number>();
   const waitForFirstChange = false;
   const lastModifiedRef = useRef<number>(null);
+
+  const regions = useMemo(() => {
+    return comparator ? comparator.getRegions() : [];
+  }, [comparator]);
 
   useEffect(() => {
     if (!fileHandle || !comparator) return;
@@ -294,15 +298,14 @@ export const App: FC = () => {
         )}
       </Stack>
 
-      {fileHandle && (
+      {fileHandle && comparator && (
         <Stack gap={1}>
           <Typography component="h2" variant="h6">
             Coverage visualizer
           </Typography>
 
           <VisualizeCoverage
-            blockSize={blockSize}
-            sampleCount={sampleCount}
+            regions={regions}
             watchIntervalMs={watchIntervalMs}
             fileHandle={fileHandle}
           />
