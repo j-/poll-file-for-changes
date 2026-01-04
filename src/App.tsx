@@ -3,6 +3,7 @@ import { SnackbarProvider, enqueueSnackbar } from 'notistack';
 import { useEffect, useId, useRef, useState, type ChangeEvent, type FC } from 'react';
 import { SampledFileComparator } from './sampled-file-comparator';
 import { createStore, del, get, set } from 'idb-keyval';
+import { VisualizeCoverage } from './VisualizeCoverage';
 
 const customStore = createStore('/poll-file-for-changes', 'fileHandleStore');
 
@@ -292,6 +293,21 @@ export const App: FC = () => {
           </Stack>
         )}
       </Stack>
+
+      {fileHandle && (
+        <Stack gap={1}>
+          <Typography component="h2" variant="h6">
+            Coverage visualizer
+          </Typography>
+
+          <VisualizeCoverage
+            blockSize={blockSize}
+            sampleCount={sampleCount}
+            watchIntervalMs={watchIntervalMs}
+            fileHandle={fileHandle}
+          />
+        </Stack>
+      )}
     </Stack>
   );
 };
